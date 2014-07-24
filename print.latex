@@ -1,0 +1,7 @@
+\documentclass[paper]{article}
+\usepackage{pdfpages}
+
+\begin{document}
+\includepdf[pages=1-last,nup=1x2,landscape=false,frame=true,
+	noautoscale=false,delta=0mm 5mm]{pdffile}
+\end{document}

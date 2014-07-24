@@ -1,0 +1,370 @@
+\documentclass{beamer}
+\usepackage{tikz}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{wasysym}
+\usepackage{ifthen}
+\usepackage{fp}
+
+\newlength{\imageheight}
+\newlength{\imagewidth}
+\newcommand{\getlength}[1]{\number#1}
+
+\newcommand{\pagerobotscale}[1]{
+	\usebackgroundtemplate{
+		\settoheight{\imageheight}{\includegraphics{#1}}
+		\settowidth{\imagewidth}{\includegraphics{#1}}
+
+		% Image ratio
+		\FPeval\imgratio{\getlength{\imagewidth}/\getlength{\imageheight}}
+
+		% Paper tatio
+		\FPeval\paperratio{\getlength{\paperwidth}/\getlength{\paperheight}}
+
+		% Choose to scale either length
+		\ifthenelse{\lengthtest{\imgratio pt < \paperratio pt}}{
+			\tikz[overlay,remember picture]
+			\node[opacity=0.1, at=(current page.center)] {
+				\includegraphics[width=\paperwidth,keepaspectratio,clip]{#1}
+			};
+		}{
+			\tikz[overlay,remember picture]
+			\node[opacity=0.1, at=(current page.center)] {
+				\includegraphics[height=\paperheight,keepaspectratio,clip]{#1}
+			};
+		}
+	}
+}
+
+\newcommand{\pagerobot}[1]{
+	\usebackgroundtemplate{
+		\tikz[overlay,remember picture]
+		\node[opacity=0.1, at=(current page.center)] {
+			\includegraphics[height=\paperheight,width=\paperwidth,keepaspectratio]{#1}
+		};
+	}
+}
+\newcommand{\nopagerobot}{
+	\usebackgroundtemplate{}
+}
+
+
+%
+% Progress bar
+%
+\definecolor{pbblue}{HTML}{0A75A8}% filling color for the progress bar
+\definecolor{pbgray}{HTML}{575757}% background color for the progress bar
+
+\makeatletter
+\def\progressbar@progressbar{}	% the progress bar
+\newcount\progressbar@tmpcounta	% auxiliary counter
+\newcount\progressbar@tmpcountb	% auxiliary counter
+\newdimen\progressbar@pbht	% progressbar height
+\newdimen\progressbar@pbwd	% progressbar width
+\newdimen\progressbar@tmpdim	% auxiliary dimension
+
+\progressbar@pbwd=\linewidth
+\progressbar@pbht=.2ex
+
+\def\progressbar@progressbar{
+	\progressbar@tmpcounta=\insertframenumber
+	\progressbar@tmpcountb=\inserttotalframenumber
+	\progressbar@tmpdim=\progressbar@pbwd
+	\multiply\progressbar@tmpdim by \progressbar@tmpcounta
+	\divide\progressbar@tmpdim by \progressbar@tmpcountb
+
+	\begin{tikzpicture}[very thin]
+	\shade[top color=pbgray!20,bottom color=pbgray!20,middle color=pbgray!50]
+		(0pt, 0pt) rectangle ++ (\progressbar@pbwd, \progressbar@pbht);
+
+	\shade[draw=pbblue,top color=pbblue!50,bottom color=pbblue!50,middle color=pbblue]
+		(0pt, 0pt) rectangle ++ (\progressbar@tmpdim, \progressbar@pbht);
+	\end{tikzpicture}
+}
+
+\addtobeamertemplate{headline}{}{
+	\begin{beamercolorbox}[wd=\paperwidth,ht=1ex,center,dp=1ex]{white}
+		\progressbar@progressbar
+	\end{beamercolorbox}
+}
+\makeatother
+
+
+
+
+
+\title[kurztitel]{Robots Everywhere}
+\subtitle[kurzsubtitel]{The GNU Toolchain Build Robot}
+\author{Jan-Benedict Glaw {\textless}\href{mailto:jbglaw@lug-owl.de}{jbglaw@lug-owl.de}{\textgreater}}
+\date{July 19, 2014}
+
+\setbeamertemplate{footline}[text line]{
+	\parbox{\linewidth}{\vspace*{-8pt}
+		GNU Tools Cauldron 2014 \hfill \insertauthor
+	}
+}
+\setbeamertemplate{navigation symbols}{}
+
+\begin{document}
+	\pagerobotscale{robot-HAL9000.jpeg}
+	\frame{\titlepage}
+
+	\pagerobotscale{robot-michael.jpeg}
+	\begin{frame}{Table of Contents}
+		\tableofcontents
+	\end{frame}
+
+	\section{Origins}
+	\pagerobotscale{robot-dark-star.jpeg}
+	\begin{frame}{Origins I}
+		\begin{itemize}[<+->]
+			\item{The \texttt{vax-linux} project
+				\begin{itemize}
+					\item{Old GCC: Worked at that time, but
+						old. More and more workarounds needed
+						for building the Linux kernel}
+					\item{HEAD port: Some issues, but at least
+						a modern source base}
+				\end{itemize}
+			}
+			\item{New GCC---new problems
+				\begin{itemize}
+					\item{Maintained as a set of patches}
+					\item{Frequent upstream breakages}
+					\item{Interface / structural changes
+						(rarely a problem, but happened
+						from time to time)}
+				\end{itemize}
+			}
+		\end{itemize}
+	\end{frame}
+
+	\pagerobotscale{robot-marvin.jpeg}
+	\begin{frame}{Origins II}
+		\begin{itemize}[<+->]
+			\item{Build HEAD + patches in a tight loop
+				\begin{itemize}
+					\item{A handful builds per day}
+					\item{\texttt{vax-linux} only}
+					\item{\texttt{diff}'ed build logs: last
+						build vs. current}
+					\item{Email only: no history of previous
+						builds preserved}
+				\end{itemize}
+			}
+			\item{Nothing else checked
+				\begin{itemize}
+					\item{No other targets}
+					\item{No other build hosts}
+					\item{No testsuite}
+				\end{itemize}
+			}
+		\end{itemize}
+	\end{frame}
+
+	\section{Current Build Robot}
+	\pagerobot{robot-pintsize.jpeg}
+	\begin{frame}{Current Build Robot I}
+		\begin{itemize}[<+->]
+			\item{Schedules builds on several build slaves
+				\begin{itemize}
+					\item{Script on the client, with some
+						included files for configury}
+					\item{Central scheduler starting builds
+						on all the slaves}
+					\item{All results are placed in a database}
+				\end{itemize}
+			}
+			\item{Written purely in shell: Java, Python not
+				required on build slaves}
+			\item{Two build strategies
+				\begin{itemize}
+					\item{\texttt{config-list.mk}}
+					\item{Own strategy, building Binutils,
+						GDB, GCC---should result in a
+						usable \texttt{stage1}
+						toolchain}
+				\end{itemize}
+			}
+		\end{itemize}
+	\end{frame}
+
+	\pagerobotscale{robot-kitt.jpeg}
+	\begin{frame}{Current Build Robot II}
+		\begin{itemize}[<+->]
+			\item{Web frontend at \url{http://toolchain.lug-owl.de/buildbot}}
+			\item{Tabular list of most recent builds}
+			\item{Timeline view}
+			\item{Build time per target}
+			\item{Details view for individual builds
+				\begin{itemize}
+					\item{\texttt{config-list.mk}}
+					\item{Own strategy}
+				\end{itemize}
+			}
+		\end{itemize}
+	\end{frame}
+
+	\subsection{Tabular View}
+	\nopagerobot
+	\begin{frame}{Tabular View}
+		\begin{figure}[h!]
+			\includegraphics[width=\textwidth,height=0.7\textheight,keepaspectratio]{view-tabular.png}
+			\caption{Tabular view. (\url{http://toolchain.lug-owl.de/buildbot})}
+		\end{figure}
+	\end{frame}
+
+	\subsection{Timeline View}
+	\nopagerobot
+	\begin{frame}{Timeline View}
+		\begin{figure}[h!]
+			\includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{view-timeline.png}
+			\caption{Timeline view. (\url{http://toolchain.lug-owl.de/buildbot/timeline.php})}
+		\end{figure}
+	\end{frame}
+
+	\subsection{Build Time View}
+	\nopagerobot
+	\begin{frame}{Build Time View}
+		\begin{figure}[h!]
+			\includegraphics[width=\textwidth,height=0.7\textheight,keepaspectratio]{view-buildtime.png}
+			\caption{Build time view. (\url{http://toolchain.lug-owl.de/buildbot/timegraph.php?target=vax-linux})}
+		\end{figure}
+	\end{frame}
+
+	\subsection{Details: \texttt{config-list.mk}}
+	\nopagerobot
+	\begin{frame}{Details: \texttt{config-list.mk}}
+		\begin{figure}[h!]
+			\includegraphics[width=\textwidth,height=0.7\textheight,keepaspectratio]{view-details-configlistmk.png}
+			\caption{Details: \texttt{config-list.mk}. (\url{http://toolchain.lug-owl.de/buildbot/show_build_details.php?id=291233})}
+		\end{figure}
+	\end{frame}
+
+	\subsection{Details: Own Strategy}
+	\nopagerobot
+	\begin{frame}{Details: Own Strategy}
+		\begin{figure}[h!]
+			\includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{view-details-ownstrategy.png}
+			\caption{Details: Own Strategy. (\url{http://toolchain.lug-owl.de/buildbot/show_build_details.php?id=290859})}
+		\end{figure}
+	\end{frame}
+
+	\section{Obvious Stuff Missing}
+	\pagerobotscale{robot-data.jpeg}
+	\begin{frame}{Obvious Stuff Missing}
+		\begin{itemize}[<+->]
+			\item{Notifications for build status changes}
+			\item{Build log \texttt{diff}s
+				\begin{itemize}
+					\item{Several regexps need to be
+						applied}
+				\end{itemize}
+			}
+			\item{Maybe open Bugzilla tickets?}
+			\item{A build strategy building a complete cross
+				toolchain incl. glibc/uClibc. Maybe use
+				Crosstool~NG?}
+			\item{More build slaves for greater build/host
+				diversity}
+			\item{Build all languages}
+			\item{Fix current targets}
+		\end{itemize}
+	\end{frame}
+
+
+
+	\section{Missing Non-Obvious Stuff}
+	\pagerobotscale{robot-r2d2.jpeg}
+	\begin{frame}{Missing Non-Obvious Stuff}
+		\begin{itemize}[<+->]
+			\item{Try harder running the testsuite
+				\begin{itemize}
+					\item{sim, newlib, real board config
+						for DG, real Hardware, Qemu,
+						...}
+				\end{itemize}
+			}
+			\item{More targets}
+			\item{Non-GCC host compiler
+				\begin{itemize}
+					\item{Intel icc}
+					\item{IBM XL C/C++ Compiler (for AIX)}
+					\item{No promising results yet \frownie}
+				\end{itemize}
+			}
+			\item{Trigger builds for specific targets on specific
+				slaves}
+			\item{Patch tester}
+		\end{itemize}
+	\end{frame}
+
+
+
+	\section{Lessons Learned}
+	\pagerobotscale{robot-no5-johnny.jpeg}
+	\begin{frame}{Lessons Learned}
+		\begin{itemize}[<+->]
+			\item{Even experienced GCC hackers commit bad patches with typos}
+			\item{Even with actual testing it's too easy to build
+				a configuration that doesn't even use the new
+				code
+				\begin{itemize}
+					\item{Keep in mind: That's only building
+						GCC; we've yet to verify that it's
+						generating usable code}
+				\end{itemize}
+			}
+			\item{Large patches reorganizing parts of GCC easily break
+				other optional parts, eg. because of missing
+				new include files}
+			\item{Variable type or name changes: \texttt{grep} the
+				whole combined tree for former users}
+			\item{Port maintainer need quite some time catching
+				even simple breakages on their own}
+			\item{Fully exploiting the testsuite is quite tricky}
+			\item{Seems companies are interested in having an
+				internally running build robot, but don't
+				like to see their port's result in the
+				public; probably a good number of private
+				ports around}
+		\end{itemize}
+	\end{frame}
+
+
+
+	\section{Wishlist / Questions}
+	\pagerobotscale{robot-c3po.jpeg}
+	\begin{frame}{Wishlist / Questions}
+		\begin{itemize}[<+->]
+			\item{Your turn! \smiley
+				\vspace{8em}
+			}
+			\item{Thanks}
+		\end{itemize}
+	\end{frame}
+
+
+
+	\subsection{Robots}
+	\pagerobot{robot-tin-woodman.jpeg}
+	\begin{frame}{Robots}
+		\begin{itemize}
+			\item{Robots in order of appearance:
+				\begin{itemize}
+					\item{HAL9000 (\href{http://en.wikipedia.org/wiki/2001:\_A\_Space\_Odyssey\_(film)}{2001: A Space Odyssey})}
+					\item{Michael (\href{http://en.wikipedia.org/wiki/Prototype\_\%281983\_film\%29}{Prototype})}
+					\item{Atomic Bomb (\href{http://en.wikipedia.org/wiki/Dark\_Star\_\%28film\%29}{Dark Star})}
+					\item{Marvin (\href{http://en.wikipedia.org/wiki/The\_Hitchhiker\%27s\_Guide\_to\_the\_Galaxy\_\%28film\%29}{The Hitchhiker's Guide to the Galaxy})}
+					\item{Pintsize (\href{http://en.wikipedia.org/wiki/Questionable\_Content}{Questionable Content})}
+					\item{KITT (\href{http://en.wikipedia.org/wiki/Knight\_Rider\_\%281982\_TV\_series\%29}{Knight Rider})}
+					\item{Data (\href{http://en.wikipedia.org/wiki/Star\_Trek:\_The\_Next\_Generation}{Star Trek: The Next Generation})}
+					\item{R2-D2 (\href{http://en.wikipedia.org/wiki/Star\_Wars}{Star Wars})}
+					\item{Number 5 (\href{http://en.wikipedia.org/wiki/Short\_Circuit}{Short Circuit})}
+					\item{C-3PO (\href{http://en.wikipedia.org/wiki/Star\_Wars}{Star Wars})}
+					\item{Tin Woodman (\href{http://en.wikipedia.org/wiki/The\_Wizard\_of\_Oz\_\%281939\_film\%29}{The Wizard of Oz})}
+				\end{itemize}
+			}
+		\end{itemize}
+	\end{frame}
+\end{document}
