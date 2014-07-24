@@ -18,7 +18,7 @@
 		% Image ratio
 		\FPeval\imgratio{\getlength{\imagewidth}/\getlength{\imageheight}}
 
-		% Paper tatio
+		% Paper ratio
 		\FPeval\paperratio{\getlength{\paperwidth}/\getlength{\paperheight}}
 
 		% Choose to scale either length
